@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pomodoro — App de descanso</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+  <style>
+    /* --- RESET DEFINITIVO --- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    :root {
+      /* Tema Oscuro (por defecto) */
+      --bg-grad-start: #071223;
+      --bg-grad-end: #0f1724;
+      --card-bg: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      --text-main: #e6eef6;
+      --text-muted: #9aa4b2;
+      --accent: #ff6b6b;
+      --accent-2: #7c5cff;
+      --glass: rgba(255,255,255,0.03);
+      --ring-bg: rgba(255,255,255,0.06);
+      --btn-pause-bg: #263042;
+      --input-border: rgba(255,255,255,0.04);
+      --section-bg: rgba(255,255,255,0.02);
+      --hist-item-bg: rgba(255,255,255,0.01);
+      --success: #22c55e;
+    }
+
+    html[data-theme="light"] {
+      --bg-grad-start: #f0f4f8;
+      --bg-grad-end: #d9e2ec;
+      --card-bg: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.5));
+      --text-main: #1e293b;
+      --text-muted: #475569;
+      --accent: #ef4444;
+      --accent-2: #6d28d9;
+      --glass: rgba(0,0,0,0.03);
+      --ring-bg: rgba(0,0,0,0.08);
+      --btn-pause-bg: #cbd5e1;
+      --input-border: rgba(0,0,0,0.1);
+      --section-bg: rgba(0,0,0,0.02);
+      --hist-item-bg: rgba(0,0,0,0.01);
+    }
+    
+    html[data-theme="forest"] {
+      --bg-grad-start: #143029;
+      --bg-grad-end: #2a4c45;
+      --card-bg: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      --text-main: #cce8e1;
+      --text-muted: #88aea4;
+      --accent: #58cc87;
+      --accent-2: #8ae9b3;
+      --glass: rgba(204, 232, 225, 0.05);
+      --ring-bg: rgba(204, 232, 225, 0.1);
+      --btn-pause-bg: #3a685e;
+      --input-border: rgba(204, 232, 225, 0.08);
+      --section-bg: rgba(255,255,255,0.03);
+      --hist-item-bg: rgba(255,255,255,0.02);
+    }
+
+    html[data-theme="ocean"] {
+      --bg-grad-start: #1e3a5f;
+      --bg-grad-end: #1d2a4a;
+      --card-bg: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      --text-main: #d4e1f5;
+      --text-muted: #8b9dc0;
+      --accent: #3b82f6;
+      --accent-2: #60a5fa;
+      --glass: rgba(212, 225, 245, 0.05);
+      --ring-bg: rgba(212, 225, 245, 0.1);
+      --btn-pause-bg: #374f7a;
+      --input-border: rgba(212, 225, 245, 0.08);
+      --section-bg: rgba(255,255,255,0.03);
+      --hist-item-bg: rgba(255,255,255,0.02);
+    }
+
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%); color:var(--text-main); transition: background 0.3s, color 0.3s;}
+    
+    .app { min-height: 100vh; display: flex; align-items: stretch; justify-content: center; padding: 0; }
+    .card {
+      width: 980px; max-width: 100%; background: var(--card-bg); padding: 24px;
+      display: grid; grid-template-columns: 360px 1fr; gap: 20px;
+      position: relative; transition: background 0.3s; border-radius: 0; box-shadow: none;
+    }
+
+    .shop-open-btn {
+      position: absolute; top: 24px; right: 24px; background-color: var(--glass);
+      border: 1px solid var(--input-border); color: var(--text-main); padding: 8px 12px;
+      border-radius: 10px; cursor: pointer; display: flex; align-items: center;
+      gap: 8px; font-weight: 600; z-index: 100;
+    }
+    .shop-open-btn:hover { background-color: var(--section-bg); }
+    .coin-icon { font-size: 16px; }
+
+    .shop-modal {
+      position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+      z-index: 1000; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .shop-modal.show { opacity: 1; pointer-events: auto; }
+    .shop-modal-content {
+      background-color: var(--bg-grad-end); border: 1px solid var(--input-border); padding: 24px;
+      border-radius: 14px; width: 500px; max-width: 90%; max-height: 90vh;
+      overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative;
+      transform: scale(0.95); transition: transform 0.3s ease;
+    }
+    .shop-modal.show .shop-modal-content { transform: scale(1); }
+    .shop-close-btn {
+      position: absolute; top: 10px; right: 10px; background: none; border: none;
+      font-size: 28px; color: var(--text-muted); cursor: pointer;
+    }
+    .shop-modal-content h3 { margin-top: 0; }
+    .shop-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+    .shop-tab {
+      padding: 8px 16px; background: var(--glass); border: 1px solid var(--input-border);
+      color: var(--text-muted); border-radius: 8px; cursor: pointer;
+    }
+    .shop-tab.active { background: var(--accent-2); color: white; border-color: transparent; }
+    .shop-item-preview { display: flex; gap: 5px; margin-top: 4px; }
+    .theme-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--input-border); }
+
+    .left{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;border-radius:12px;background:var(--glass)}
+    .mode-controls{display:flex;gap:10px}
+    .mode-btn{background:transparent;border:1px solid var(--input-border);padding:8px 12px;border-radius:10px;color:var(--text-muted);cursor:pointer}
+    .mode-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:0}
+    .ring{ position: relative; width:260px;height:260px;display:grid;place-items:center }
+    .time{font-size:48px;font-weight:700;letter-spacing:1px}
+    .label{color:var(--text-muted);font-size:13px;margin-top:6px}
+    .coin-animation {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 28px; font-weight: bold; color: var(--success); opacity: 0;
+        transition: all 1.5s ease-out; z-index: 10; pointer-events: none;
+    }
+    .coin-animation.show { transform: translate(-50%, -150%); opacity: 1; }
+    
+    .task-input-wrapper { display: flex; gap: 8px; width: 100%; max-width: 280px; }
+    .task-input-container { flex-grow: 1; }
+    #taskInput {
+      width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;
+      border: 1px solid var(--input-border); background: transparent; color: var(--text-main);
+    }
+    .magic-btn {
+      padding: 8px; line-height: 1; font-size: 18px;
+      flex-shrink: 0; background-image: linear-gradient(45deg, var(--accent-2), var(--accent));
+      color: white; border: none;
+    }
+
+    .task-breakdown {
+        background-color: var(--section-bg); border-radius: 8px;
+        padding: 12px; width: 100%; max-width: 280px;
+        font-size: 14px;
+    }
+    .task-breakdown h4 { margin: 0 0 8px 0; font-size: 14px; color: var(--text-main); }
+    .task-breakdown ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+    .task-breakdown li { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+    .task-breakdown input[type="checkbox"] { accent-color: var(--accent-2); }
+    .spinner {
+        border: 4px solid var(--glass); border-top: 4px solid var(--accent-2);
+        border-radius: 50%; width: 24px; height: 24px;
+        animation: spin 1s linear infinite; margin: 10px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .controls{display:flex;gap:10px}
+    .btn{padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+    .btn.start{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white}
+    .btn.pause{background:var(--btn-pause-bg);color: var(--text-main);}
+    .btn.reset{background:transparent;border:1px solid var(--input-border);color:var(--text-muted)}
+
+    /* ESTILOS DEL ASISTENTE */
+    .assistant-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+        max-width: 280px;
+        margin-top: auto; /* Empuja el asistente hacia abajo */
+    }
+    .character {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(45deg, var(--accent-2), var(--accent));
+        border-radius: 50%;
+        position: relative;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: transform 0.2s ease;
+        animation: float 4s ease-in-out infinite;
+    }
+    .character:hover { transform: scale(1.1); }
+    .character .eye {
+        width: 6px; height: 8px;
+        background: var(--text-main);
+        border-radius: 50%;
+        position: absolute;
+        top: 22px;
+        animation: blink 5s ease-in-out infinite;
+    }
+    .character .left-eye { left: 18px; }
+    .character .right-eye { right: 18px; }
+    .character .mouth {
+        width: 15px; height: 7px;
+        border: 2px solid var(--text-main);
+        border-top: none;
+        border-radius: 0 0 10px 10px;
+        position: absolute;
+        bottom: 15px;
+        left: calc(50% - 7.5px);
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+    }
+    @keyframes blink {
+        0%, 90%, 100% { transform: scaleY(1); }
+        95% { transform: scaleY(0.1); }
+    }
+    .speech-bubble {
+        flex: 1;
+        background: var(--section-bg);
+        padding: 12px;
+        border-radius: 10px;
+        position: relative;
+        font-size: 13px;
+        font-style: italic;
+        color: var(--text-muted);
+        min-height: 4em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .speech-bubble::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -10px;
+        margin-top: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent var(--section-bg) transparent transparent;
+        transition: border-color 0.3s;
+    }
+
+
+    .right{display:flex;flex-direction:column;gap:16px;padding:18px}
+    .section{background:var(--section-bg);padding:14px;border-radius:10px}
+    .section h3{margin:0 0 8px 0;font-size:15px}
+    
+    .shop-container { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .shop-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px; background: var(--hist-item-bg);
+      border-radius: 8px; border-left: 3px solid transparent;
+    }
+    .shop-item.selected { border-left-color: var(--accent-2); }
+    .shop-item-details { display: flex; flex-direction: column; }
+    .shop-item-name { font-weight: 600; }
+    .shop-btn {
+      padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer;
+      font-weight: 600; font-size: 13px; transition: background-color 0.2s;
+    }
+    .shop-btn.buy { background-color: var(--success); color: white; }
+    .shop-btn.select { background-color: var(--accent-2); color: white; }
+    .shop-btn:disabled { background-color: var(--btn-pause-bg); color: var(--text-muted); cursor: not-allowed; }
+
+    .field{display:flex;gap:8px;align-items:center}
+    .field label{min-width:160px;color:var(--text-muted);font-size:13px}
+    .field input[type=number], .theme-select {width:100%;padding:8px;border-radius:8px;border:1px solid var(--input-border);background:transparent;color:inherit; font-family: inherit;}
+    .toggle{display:inline-flex;align-items:center;gap:8px; cursor:pointer;}
+    .small{font-size:13px;color:var(--text-muted)}
+    .history { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .hist-item{display:flex;flex-direction:column; padding:8px;border-radius:8px;background:var(--hist-item-bg);font-size:13px; gap: 4px;}
+    .hist-item-header{display:flex; justify-content:space-between;}
+    footer{ font-size: 11px; color: var(--text-muted); text-align: center; margin-top: auto; padding-top: 10px; }
+    
+    .hamburger-btn, .close-btn { display: none; }
+    @media (max-width: 880px){
+      .app { padding: 0; }
+      .card{grid-template-columns:1fr; height: 100vh; border-radius: 0; padding: 16px; gap: 0;}
+      .left{justify-content: center; background: transparent;}
+      .shop-open-btn { top: 16px; right: 16px; }
+      .hamburger-btn {
+        display: flex; flex-direction: column; justify-content: space-around;
+        width: 30px; height: 30px; background: transparent; border: none; cursor: pointer;
+        padding: 0; position: absolute; top: 24px; left: 24px; z-index: 1001;
+      }
+      .hamburger-btn span { width: 30px; height: 3px; background: var(--text-muted); border-radius: 5px; }
+      .card.menu-active .hamburger-btn { display: none; }
+      .right{
+        position: fixed; top: 0; left: 0; height: 100%; width: 300px; max-width: 80%;
+        background: var(--bg-grad-end); z-index: 1000;
+        transform: translateX(-100%); transition: transform 0.3s ease-in-out;
+        box-shadow: 5px 0px 20px rgba(0,0,0,0.3);
+        overflow-y: auto; padding-top: 60px;
+      }
+      .right.menu-open { transform: translateX(0); }
+      .close-btn {
+        display: block; position: absolute; top: 15px; right: 15px;
+        background: transparent; border: none; color: var(--text-main); font-size: 32px; cursor: pointer;
+      }
+    }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background-color: var(--accent-2); color: white; padding: 12px 24px;
+      border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, bottom 0.3s;
+      z-index: 2000;
+    }
+    .toast.show { opacity: 1; visibility: visible; bottom: 30px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="card" role="application" aria-label="Timer Pomodoro">
+      <button class="shop-open-btn" id="shopBtn" aria-label="Abrir tienda">
+        <span id="shopCoinCount"></span><span class="coin-icon">🪙</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      </button>
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="left">
+        <div class="mode-controls" role="tablist">
+          <button class="mode-btn active" data-mode="pomodoro" role="tab">Pomodoro</button>
+          <button class="mode-btn" data-mode="short" role="tab">Descanso corto</button>
+          <button class="mode-btn" data-mode="long" role="tab">Descanso largo</button>
+        </div>
+        <div class="ring" aria-hidden="false">
+          <div class="coin-animation" id="coinAnimation">+1 🪙</div>
+          <svg id="progressSvg" viewBox="0 0 120 120" width="260" height="260">
+            <defs>
+              <linearGradient id="g1" x1="0%" x2="100%"><stop offset="0%" stop-color="var(--accent)" /><stop offset="100%" stop-color="var(--accent-2)" /></linearGradient>
+            </defs>
+            <g transform="translate(60,60)">
+              <circle r="52" stroke="var(--ring-bg)" stroke-width="12" fill="none"></circle>
+              <circle id="progressCircle" r="52" stroke="url(#g1)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="326.7256" stroke-dashoffset="0" transform="rotate(-90)"></circle>
+            </g>
+          </svg>
+          <div style="position:absolute;text-align:center;">
+            <div class="time" id="timeDisplay" aria-live="polite">25:00</div>
+            <div class="label" id="modeLabel">Enfoque</div>
+          </div>
+        </div>
+        
+        <div class="task-input-wrapper">
+            <div class="task-input-container">
+                <input type="text" id="taskInput" placeholder="¿En qué te enfocas?">
+            </div>
+            <button class="btn magic-btn" id="breakdownBtn" title="Desglosar Tarea con IA ✨">✨</button>
+        </div>
+        
+        <div class="task-breakdown" id="taskBreakdown" style="display: none;"></div>
+
+        <div class="controls">
+          <button class="btn start" id="startBtn">Iniciar</button>
+          <button class="btn pause" id="pauseBtn" style="display:none">Pausar</button>
+          <button class="btn reset" id="resetBtn">Reiniciar</button>
+        </div>
+        <div class="small">Atajos: <strong>Espacio</strong> iniciar/pausar • <strong>R</strong> reiniciar</div>
+
+        <div class="assistant-wrapper">
+            <div class="character" id="assistantCharacter" title="¡Haz clic para otra frase!">
+                <div class="eye left-eye"></div>
+                <div class="eye right-eye"></div>
+                <div class="mouth"></div>
+            </div>
+            <div class="speech-bubble" id="geminiQuote">¡Lista para una sesión productiva!</div>
+        </div>
+      </div>
+
+      <aside class="right" id="rightPanel">
+        <button class="close-btn" id="closeMenuBtn" aria-label="Cerrar menú">&times;</button>
+        <section class="section">
+          <h3>Configuración</h3>
+          <div class="field"><label for="pomodoroInput">Duración Pomodoro (min)</label><input id="pomodoroInput" type="number" min="1" max="180" value="25"></div>
+          <div class="field"><label for="shortInput">Descanso corto (min)</label><input id="shortInput" type="number" min="1" max="60" value="5"></div>
+          <div class="field"><label for="longInput">Descanso largo (min)</label><input id="longInput" type="number" min="1" max="120" value="15"></div>
+          <div class="field"><label for="cyclesInput">Ciclos hasta descanso largo</label><input id="cyclesInput" type="number" min="1" max="10" value="4"></div>
+          <div class="field">
+              <label for="soundSelector" class="small">Sonido de alarma</label>
+              <select id="soundSelector" class="theme-select"></select>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap: wrap">
+            <label class="toggle"><input type="checkbox" id="autoNext"> <span class="small">Autoplay siguiente</span></label>
+            <label class="toggle"><input type="checkbox" id="notifToggle"> <span class="small">Notificaciones</span></label>
+          </div>
+           <div style="margin-top:10px;display:flex;gap:8px;"><button class="btn" id="saveSettings">Guardar</button><button class="btn" id="resetSettings">Restablecer</button></div>
+        </section>
+        <section class="section">
+          <h3>Historial</h3>
+          <div class="history" id="history"></div>
+        </section>
+        <footer>@Copyright Germán Narciso Córdoba</footer>
+      </aside>
+    </main>
+  </div>
+  
+  <div class="shop-modal" id="shopModal">
+    <div class="shop-modal-content">
+      <button class="shop-close-btn" id="shopCloseBtn" aria-label="Cerrar tienda">&times;</button>
+      <h3>🏪 Tienda de Recompensas</h3>
+      <div class="shop-tabs">
+        <button class="shop-tab active" data-tab="themes">Temas</button>
+        <button class="shop-tab" data-tab="sounds">Sonidos</button>
+      </div>
+      <div class="shop-container" id="shopContainer"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  
+  <audio id="sound_beep" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=" preload="auto"></audio>
+  <audio id="sound_bell" src="data:audio/wav;base64,UklGRlIAAABXQVZFZm10IBAAAAABAAEARKwAARKwAAABAAgAZGF0YUgAAABWAgAEBAEACQAKEAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCAsgCgAKCA==" preload="auto"></audio>
+  <audio id="sound_chime" src="data:audio/wav;base64,UklGRjoAAABXQVZFZm10IBAAAAABAAIARKwAABCxAgAEABAAZGF0YRYAAAD///////////8AAAAAAAAAAAAAAAAAAAAA//8CAP/5/7n/yP/2/9H/jP+9/3//ov/x/2v/vv/S/9T/zf+z/8H/x/+t/6v/qP+w/6v/qP+w/6v/qP+v/6z/rv+v/6//rP+u/6//rP+w/6v/qP+t/6r/qg==" preload="auto"></audio>
+
+  <script>
+    const pomodoroApp = {
+      elements: {
+        card: document.querySelector('.card'),
+        timeDisplay: document.getElementById('timeDisplay'),
+        modeLabel: document.getElementById('modeLabel'),
+        progressCircle: document.getElementById('progressCircle'),
+        historyEl: document.getElementById('history'),
+        taskInput: document.getElementById('taskInput'),
+        toast: document.getElementById('toast'),
+        coinAnimation: document.getElementById('coinAnimation'),
+        shopBtn: document.getElementById('shopBtn'),
+        shopModal: document.getElementById('shopModal'),
+        shopCloseBtn: document.getElementById('shopCloseBtn'),
+        shopCoinCount: document.getElementById('shopCoinCount'),
+        shopTabs: document.querySelector('.shop-tabs'),
+        shopContainer: document.getElementById('shopContainer'),
+        soundSelector: document.getElementById('soundSelector'),
+        startBtn: document.getElementById('startBtn'),
+        pauseBtn: document.getElementById('pauseBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        modeBtns: document.querySelectorAll('.mode-btn'),
+        pomodoroInput: document.getElementById('pomodoroInput'),
+        shortInput: document.getElementById('shortInput'),
+        longInput: document.getElementById('longInput'),
+        cyclesInput: document.getElementById('cyclesInput'),
+        autoNext: document.getElementById('autoNext'),
+        notifToggle: document.getElementById('notifToggle'),
+        saveSettings: document.getElementById('saveSettings'),
+        resetSettings: document.getElementById('resetSettings'),
+        hamburgerBtn: document.getElementById('hamburgerBtn'),
+        closeMenuBtn: document.getElementById('closeMenuBtn'),
+        rightPanel: document.getElementById('rightPanel'),
+        breakdownBtn: document.getElementById('breakdownBtn'),
+        taskBreakdown: document.getElementById('taskBreakdown'),
+        geminiQuote: document.getElementById('geminiQuote'),
+        assistantCharacter: document.getElementById('assistantCharacter'),
+      },
+      state: {
+        mode: 'pomodoro', running: false, timer: null, remaining: 0,
+        total: 0, completedCycles: 0, originalTitle: document.title,
+        coins: 0, selectedSound: 'sound_beep', shopVisible: false, activeShopTab: 'themes',
+        audioUnlocked: false,
+      },
+      config: { CIRCLE_CIRC: 2 * Math.PI * 52, },
+      shop: {
+        items: [
+          { id: 'dark', name: 'Oscuro', type: 'theme', cost: 0, unlocked: true, preview: ['#0f1724', '#e6eef6', '#ff6b6b'] },
+          { id: 'light', name: 'Claro', type: 'theme', cost: 0, unlocked: true, preview: ['#d9e2ec', '#1e293b', '#ef4444'] },
+          { id: 'forest', name: 'Bosque Sereno', type: 'theme', cost: 15, unlocked: false, preview: ['#2a4c45', '#cce8e1', '#58cc87'] },
+          { id: 'ocean', name: 'Océano Profundo', type: 'theme', cost: 15, unlocked: false, preview: ['#1d2a4a', '#d4e1f5', '#3b82f6'] },
+          { id: 'sound_beep', name: 'Beep Clásico', type: 'sound', cost: 0, unlocked: true },
+          { id: 'sound_bell', name: 'Campana', type: 'sound', cost: 5, unlocked: false },
+          { id: 'sound_chime', name: 'Timbre', type: 'sound', cost: 10, unlocked: false }
+        ]
+      },
+      gemini: {
+        apiKey: "AIzaSyDxbKhLAxfxLmloL9Kq_n8KIfw1LPh4Khk", // Injected at runtime by the environment
+        apiUrl: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent`,
+        async call(prompt, systemInstruction) {
+            const apiKey = this.apiKey;
+            const url = `${this.apiUrl}?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }], };
+            if (systemInstruction) {
+                payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+            }
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) { throw new Error(`API request failed with status ${response.status}`); }
+                const result = await response.json();
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
+            } catch (error) {
+                console.error("Gemini API call failed:", error);
+                return "Error al contactar la IA. Inténtalo de nuevo.";
+            }
+        }
+      },
+      methods: {
+        initializeAudioElements() {
+          pomodoroApp.shop.items.forEach(item => {
+            if (item.type === 'sound') { item.audioEl = document.getElementById(item.id); }
+          });
+          document.body.addEventListener('click', () => {
+            if (!pomodoroApp.state.audioUnlocked) {
+              pomodoroApp.shop.items.forEach(item => {
+                if (item.audioEl) {
+                  item.audioEl.play().catch(()=>{});
+                  item.audioEl.pause();
+                  item.audioEl.currentTime = 0;
+                }
+              });
+              pomodoroApp.state.audioUnlocked = true;
+            }
+          }, { once: true });
+        },
+        async getMotivationalQuote() {
+            const { geminiQuote } = pomodoroApp.elements;
+            const systemInstruction = "Eres un entrenador de productividad alegre y motivador. Proporciona una frase inspiradora muy corta (máximo 15 palabras) para alguien que va a empezar una sesión de concentración.";
+            const prompt = "Dame una frase motivacional para empezar a trabajar.";
+            geminiQuote.textContent = "Pensando...";
+            const quote = await pomodoroApp.gemini.call(prompt, systemInstruction);
+            geminiQuote.textContent = quote || "¡Tú puedes con esto!";
+        },
+        async getTaskBreakdown() {
+            const { taskInput, taskBreakdown } = pomodoroApp.elements;
+            const task = taskInput.value.trim();
+            if (!task) { this.showToast("Primero escribe una tarea."); return; }
+            taskBreakdown.style.display = 'block';
+            taskBreakdown.innerHTML = '<div class="spinner"></div>';
+            const systemInstruction = "Eres un asistente de productividad experto. Desglosa la tarea del usuario en una lista de 3 a 5 subtareas pequeñas y accionables. Responde ÚNICAMENTE con las subtareas, cada una en una nueva línea, empezando con un guion (-). No añadas títulos ni texto introductorio.";
+            const response = await pomodoroApp.gemini.call(task, systemInstruction);
+            if (response.startsWith("Error")) {
+                taskBreakdown.innerHTML = `<p>${response}</p>`;
+            } else {
+                const subtasks = response.split('\n').filter(t => t.trim().startsWith('-'));
+                taskBreakdown.innerHTML = `
+                    <h4>Subtareas sugeridas:</h4>
+                    <ul>
+                        ${subtasks.map(t => `<li><input type="checkbox"> <label>${t.substring(1).trim()}</label></li>`).join('')}
+                    </ul>`;
+            }
+        },
+        formatTime(sec) {
+          const m = Math.floor(sec / 60).toString().padStart(2, '0');
+          const s = (sec % 60).toString().padStart(2, '0');
+          return `${m}:${s}`;
+        },
+        updateDisplay() {
+          const formattedTime = this.formatTime(pomodoroApp.state.remaining);
+          pomodoroApp.elements.timeDisplay.textContent = formattedTime;
+          const percent = (pomodoroApp.state.total - pomodoroApp.state.remaining) / pomodoroApp.state.total;
+          const dash = pomodoroApp.config.CIRCLE_CIRC * (1 - percent);
+          pomodoroApp.elements.progressCircle.style.strokeDashoffset = dash;
+          document.title = `(${formattedTime}) ${pomodoroApp.state.originalTitle}`;
+        },
+        setMode(newMode, resetTimer = true) {
+          pomodoroApp.state.mode = newMode;
+          const { modeBtns, modeLabel, pomodoroInput, shortInput, longInput } = pomodoroApp.elements;
+          modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === newMode));
+          switch (newMode) {
+            case 'pomodoro': pomodoroApp.state.total = Number(pomodoroInput.value) * 60; modeLabel.textContent = 'Enfoque'; break;
+            case 'short': pomodoroApp.state.total = Number(shortInput.value) * 60; modeLabel.textContent = 'Descanso corto'; break;
+            case 'long': pomodoroApp.state.total = Number(longInput.value) * 60; modeLabel.textContent = 'Descanso largo'; break;
+          }
+          if (resetTimer) { pomodoroApp.state.remaining = pomodoroApp.state.total; }
+          this.updateDisplay();
+        },
+        tick() {
+          if (pomodoroApp.state.remaining <= 0) {
+            clearInterval(pomodoroApp.state.timer); pomodoroApp.state.timer = null;
+            pomodoroApp.state.running = false; this.onFinish(); return;
+          }
+          pomodoroApp.state.remaining--; this.updateDisplay();
+        },
+        onFinish() {
+          this.playSound(); this.addHistoryEntry(pomodoroApp.state.mode, 'completado');
+          document.title = `✅ ${pomodoroApp.state.originalTitle}`;
+          if (pomodoroApp.state.mode === 'pomodoro') { pomodoroApp.state.completedCycles++; this.addCoin(); }
+          if (pomodoroApp.elements.autoNext.checked) {
+            const cyclesToLong = Number(pomodoroApp.elements.cyclesInput.value);
+            if (pomodoroApp.state.mode === 'pomodoro') {
+              const nextMode = (pomodoroApp.state.completedCycles % cyclesToLong === 0) ? 'long' : 'short';
+              this.setMode(nextMode); this.startTimer();
+            } else { this.setMode('pomodoro'); this.startTimer(); }
+          } else {
+            pomodoroApp.elements.startBtn.style.display = 'inline-block';
+            pomodoroApp.elements.pauseBtn.style.display = 'none';
+          }
+        },
+        startTimer() {
+          if (pomodoroApp.state.running) return;
+          this.getMotivationalQuote();
+          pomodoroApp.state.running = true; this.addHistoryEntry(pomodoroApp.state.mode, 'iniciado');
+          if (!pomodoroApp.state.timer) { pomodoroApp.state.timer = setInterval(() => this.tick(), 1000); }
+          pomodoroApp.elements.startBtn.style.display = 'none'; pomodoroApp.elements.pauseBtn.style.display = 'inline-block';
+        },
+        pauseTimer() {
+          pomodoroApp.state.running = false; clearInterval(pomodoroApp.state.timer); pomodoroApp.state.timer = null;
+          this.addHistoryEntry(pomodoroApp.state.mode, 'pausado');
+          pomodoroApp.elements.startBtn.style.display = 'inline-block'; pomodoroApp.elements.pauseBtn.style.display = 'none';
+        },
+        resetTimer() {
+          pomodoroApp.state.running = false; clearInterval(pomodoroApp.state.timer); pomodoroApp.state.timer = null;
+          this.setMode(pomodoroApp.state.mode, true); this.addHistoryEntry(pomodoroApp.state.mode, 'reiniciado');
+          pomodoroApp.elements.startBtn.style.display = 'inline-block'; pomodoroApp.elements.pauseBtn.style.display = 'none';
+          document.title = pomodoroApp.state.originalTitle;
+          pomodoroApp.elements.taskBreakdown.style.display = 'none';
+          pomodoroApp.elements.geminiQuote.textContent = '¡Lista para una sesión productiva!';
+        },
+        addHistoryEntry(mode, action) {
+          const hist = JSON.parse(localStorage.getItem('pomodoro.history') || '[]');
+          const task = pomodoroApp.elements.taskInput.value.trim();
+          hist.unshift({ mode, action, time: new Date().toISOString(), task });
+          if (hist.length > 20) hist.pop();
+          localStorage.setItem('pomodoro.history', JSON.stringify(hist)); this.renderHistory(hist);
+        },
+        renderHistory(hist) {
+          pomodoroApp.elements.historyEl.innerHTML = '';
+          hist.forEach(h => {
+            const d = new Date(h.time); const el = document.createElement('div'); el.className = 'hist-item';
+            const modeText = { pomodoro: 'Pomodoro', short: 'Descanso Corto', long: 'Descanso Largo' }[h.mode] || h.mode;
+            const actionText = h.action ? h.action.charAt(0).toUpperCase() + h.action.slice(1) : '';
+            const taskHTML = h.task ? `<div class="small">Tarea: <em>${h.task}</em></div>` : '';
+            el.innerHTML = `<div class="hist-item-header"><span>${modeText} - <strong>${actionText}</strong></span><span class="small">${d.toLocaleString()}</span></div>${taskHTML}`;
+            pomodoroApp.elements.historyEl.appendChild(el);
+          });
+        },
+        addCoin() {
+          pomodoroApp.state.coins++; this.updateCoinDisplay(); this.animateCoinGain(); this.saveSettingsToStorage(); this.renderShop();
+        },
+        updateCoinDisplay() {
+          pomodoroApp.elements.shopCoinCount.textContent = pomodoroApp.state.coins;
+        },
+        animateCoinGain() {
+          const { coinAnimation } = pomodoroApp.elements;
+          coinAnimation.classList.add('show');
+          setTimeout(() => { coinAnimation.classList.remove('show'); }, 1500);
+        },
+        toggleShop(show) {
+          pomodoroApp.state.shopVisible = show;
+          pomodoroApp.elements.shopModal.classList.toggle('show', show);
+        },
+        renderShop() {
+          const { shopContainer } = pomodoroApp.elements;
+          const { coins, activeShopTab } = pomodoroApp.state;
+          shopContainer.innerHTML = '';
+          pomodoroApp.shop.items.filter(item => item.type === activeShopTab.slice(0, -1)).forEach(item => {
+            const itemEl = document.createElement('div'); itemEl.className = 'shop-item';
+            const isSelected = (item.type === 'theme' && document.documentElement.dataset.theme === item.id) || (item.type === 'sound' && pomodoroApp.state.selectedSound === item.id);
+            if (isSelected) { itemEl.classList.add('selected'); }
+            let buttonHTML;
+            if (item.unlocked) {
+              buttonHTML = isSelected ? `<button class="shop-btn select" disabled>Seleccionado</button>` : `<button class="shop-btn select" data-item-id="${item.id}">Seleccionar</button>`;
+            } else {
+              buttonHTML = `<button class="shop-btn buy" data-item-id="${item.id}" ${coins < item.cost ? 'disabled' : ''}>Comprar (${item.cost} 🪙)</button>`;
+            }
+            let detailsHTML = `<span class="shop-item-name">${item.name}</span>`;
+            if (item.type === 'theme') {
+              detailsHTML += `<div class="shop-item-preview">${item.preview.map(color => `<div class="theme-dot" style="background-color: ${color}"></div>`).join('')}</div>`;
+            }
+            itemEl.innerHTML = `<div class="shop-item-details">${detailsHTML}</div>${buttonHTML}`;
+            shopContainer.appendChild(itemEl);
+          });
+        },
+        handleShopAction(e) {
+          if (!e.target.matches('.shop-btn')) return;
+          const itemId = e.target.dataset.itemId;
+          const item = pomodoroApp.shop.items.find(i => i.id === itemId);
+          if (!item) return;
+          if (!item.unlocked) {
+            if (pomodoroApp.state.coins >= item.cost) {
+              pomodoroApp.state.coins -= item.cost; item.unlocked = true;
+              this.showToast(`${item.name} desbloqueado!`);
+              if (item.type === 'sound') this.renderSoundSelector();
+            }
+          } else {
+            if (item.type === 'theme') { document.documentElement.setAttribute('data-theme', item.id); } 
+            else if (item.type === 'sound') { pomodoroApp.state.selectedSound = item.id; this.renderSoundSelector(); }
+            this.showToast(`${item.name} seleccionado.`);
+          }
+          this.updateCoinDisplay(); this.saveSettingsToStorage(); this.renderShop();
+        },
+        renderSoundSelector() {
+          const { soundSelector } = pomodoroApp.elements;
+          soundSelector.innerHTML = '';
+          pomodoroApp.shop.items.forEach(item => {
+            if (item.type === 'sound' && item.unlocked) {
+              const option = document.createElement('option');
+              option.value = item.id; option.textContent = item.name;
+              if (item.id === pomodoroApp.state.selectedSound) { option.selected = true; }
+              soundSelector.appendChild(option);
+            }
+          });
+        },
+        playSound() {
+          const soundItem = pomodoroApp.shop.items.find(item => item.id === pomodoroApp.state.selectedSound);
+          if (soundItem && soundItem.audioEl) {
+            try { soundItem.audioEl.currentTime = 0; soundItem.audioEl.play(); } 
+            catch (e) { console.error("Error al reproducir el sonido:", e); }
+          }
+        },
+        loadSettings() {
+          const s = JSON.parse(localStorage.getItem('pomodoro.settings') || '{}');
+          const { pomodoroInput, shortInput, longInput, cyclesInput, autoNext, notifToggle } = pomodoroApp.elements;
+          pomodoroInput.value = s.pomodoro || 25;
+          shortInput.value = s.short || 5;
+          longInput.value = s.long || 15;
+          cyclesInput.value = s.cycles || 4;
+          autoNext.checked = s.autoNext ?? true;
+          notifToggle.checked = s.notif ?? false;
+          pomodoroApp.state.coins = s.coins ?? 500;
+          const theme = s.theme || 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+          pomodoroApp.state.selectedSound = s.selectedSound || 'sound_beep';
+          if (s.unlockedItems) {
+            pomodoroApp.shop.items.forEach(item => { if (s.unlockedItems.includes(item.id)) { item.unlocked = true; } });
+          }
+          this.updateCoinDisplay();
+          this.renderHistory(JSON.parse(localStorage.getItem('pomodoro.history') || '[]'));
+        },
+        saveSettingsToStorage() {
+          const s = {
+            pomodoro: Number(pomodoroApp.elements.pomodoroInput.value),
+            short: Number(pomodoroApp.elements.shortInput.value),
+            long: Number(pomodoroApp.elements.longInput.value),
+            cycles: Number(pomodoroApp.elements.cyclesInput.value),
+            autoNext: pomodoroApp.elements.autoNext.checked,
+            notif: pomodoroApp.elements.notifToggle.checked,
+            theme: document.documentElement.dataset.theme,
+            coins: pomodoroApp.state.coins,
+            selectedSound: pomodoroApp.state.selectedSound,
+            unlockedItems: pomodoroApp.shop.items.filter(i => i.unlocked).map(i => i.id)
+          };
+          localStorage.setItem('pomodoro.settings', JSON.stringify(s));
+        },
+        showToast(message) {
+          const { toast } = pomodoroApp.elements;
+          toast.textContent = message;
+          toast.classList.add('show');
+          setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        },
+        bindEvents() {
+          const { elements, methods } = pomodoroApp;
+          elements.modeBtns.forEach(b => b.addEventListener('click', () => methods.setMode(b.dataset.mode)));
+          elements.startBtn.addEventListener('click', () => methods.startTimer());
+          elements.pauseBtn.addEventListener('click', () => methods.pauseTimer());
+          elements.resetBtn.addEventListener('click', () => methods.resetTimer());
+          elements.breakdownBtn.addEventListener('click', () => methods.getTaskBreakdown());
+          elements.assistantCharacter.addEventListener('click', () => methods.getMotivationalQuote());
+          elements.hamburgerBtn.addEventListener('click', () => { elements.rightPanel.classList.add('menu-open'); elements.card.classList.add('menu-active'); });
+          elements.closeMenuBtn.addEventListener('click', () => { elements.rightPanel.classList.remove('menu-open'); elements.card.classList.remove('menu-active'); });
+          elements.saveSettings.addEventListener('click', () => { methods.saveSettingsToStorage(); methods.showToast('Configuración guardada'); });
+          elements.resetSettings.addEventListener('click', () => {
+            if (confirm('¿Seguro que quieres borrar todos los ajustes y el historial?')) {
+              localStorage.removeItem('pomodoro.settings'); localStorage.removeItem('pomodoro.history');
+              location.reload();
+            }
+          });
+          elements.shopBtn.addEventListener('click', () => methods.toggleShop(true));
+          elements.shopCloseBtn.addEventListener('click', () => methods.toggleShop(false));
+          elements.shopModal.addEventListener('click', (e) => { if (e.target === elements.shopModal) methods.toggleShop(false); });
+          elements.shopTabs.addEventListener('click', (e) => {
+            if (e.target.matches('.shop-tab')) {
+              pomodoroApp.state.activeShopTab = e.target.dataset.tab;
+              document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+              e.target.classList.add('active');
+              methods.renderShop();
+            }
+          });
+          elements.shopContainer.addEventListener('click', (e) => methods.handleShopAction(e));
+          elements.soundSelector.addEventListener('change', (e) => {
+              pomodoroApp.state.selectedSound = e.target.value;
+              methods.saveSettingsToStorage();
+              methods.renderShop();
+              methods.showToast('Sonido actualizado.');
+          });
+          document.addEventListener('keydown', (e) => {
+            if(e.target.tagName === 'INPUT') return;
+            if (e.code === 'Space') { e.preventDefault(); pomodoroApp.state.running ? methods.pauseTimer() : methods.startTimer(); }
+            if (e.key.toLowerCase() === 'r') methods.resetTimer();
+          });
+        }
+      },
+      init() {
+        this.methods.initializeAudioElements();
+        this.methods.loadSettings();
+        this.methods.setMode('pomodoro');
+        this.methods.renderShop();
+        this.methods.renderSoundSelector();
+        this.methods.bindEvents();
+        this.elements.startBtn.focus();
+        console.log("Pomodoro App con Asistente Gemini inicializada.");
+      }
+    };
+    apiKey: "AIzaSyDxbKhLAxfxLmloL9Kq_n8KIfw1LPh4Khk",
+    document.addEventListener('DOMContentLoaded', () => pomodoroApp.init());
+  </script>
+</body>
+</html>
+

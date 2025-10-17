@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pomodoro — App de descanso</title>
+  <style>
+    :root{
+      --bg:#0f1724; /* dark */
+      --card:#0b1220;
+      --accent:#ff6b6b;
+      --accent-2:#7c5cff;
+      --muted:#9aa4b2;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#071223 0%, var(--bg) 100%); color:#e6eef6}
+    .app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+    .card{width:980px;max-width:100%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:24px;display:grid;grid-template-columns:360px 1fr;gap:20px;box-shadow:0 8px 30px rgba(2,6,23,0.7)}
+
+    /* Left panel (timer) */
+    .left{display:flex;flex-direction:column;align-items:center;gap:18px;padding:20px;border-radius:12px;background:var(--glass)}
+    .mode-controls{display:flex;gap:10px}
+    .mode-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .mode-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:0}
+
+    .ring{width:260px;height:260px;display:grid;place-items:center}
+    .time{font-size:48px;font-weight:700;letter-spacing:1px}
+    .label{color:var(--muted);font-size:13px;margin-top:6px}
+
+    .controls{display:flex;gap:10px}
+    .btn{padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+    .btn.start{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white}
+    .btn.pause{background:#263042;color:white}
+    .btn.reset{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+    /* Right panel (settings & history) */
+    .right{display:flex;flex-direction:column;gap:16px;padding:18px}
+    .section{background:rgba(255,255,255,0.02);padding:14px;border-radius:10px}
+    .section h3{margin:0 0 8px 0;font-size:15px}
+    .field{display:flex;gap:8px;align-items:center}
+    .field label{min-width:160px;color:var(--muted);font-size:13px}
+    .field input[type=number]{width:100px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .toggle{display:inline-flex;align-items:center;gap:8px}
+
+    .small{font-size:13px;color:var(--muted)}
+    .history{display:flex;flex-direction:column;gap:8px}
+    .hist-item{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);font-size:13px}
+
+    footer{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+    /* responsive */
+    @media (max-width:880px){
+      .card{grid-template-columns:1fr;}
+      .left{order:2}
+      .right{order:1}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card" role="application" aria-label="Timer Pomodoro">
+      <div class="left">
+        <div class="mode-controls" role="tablist">
+          <button class="mode-btn active" data-mode="pomodoro" role="tab">Pomodoro</button>
+          <button class="mode-btn" data-mode="short" role="tab">Descanso corto</button>
+          <button class="mode-btn" data-mode="long" role="tab">Descanso largo</button>
+        </div>
+
+        <div class="ring" aria-hidden="false">
+          <svg id="progressSvg" viewBox="0 0 120 120" width="260" height="260">
+            <defs>
+              <linearGradient id="g1" x1="0%" x2="100%">
+                <stop offset="0%" stop-color="var(--accent)" />
+                <stop offset="100%" stop-color="var(--accent-2)" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(60,60)">
+              <circle r="52" stroke="rgba(255,255,255,0.06)" stroke-width="12" fill="none"></circle>
+              <circle id="progressCircle" r="52" stroke="url(#g1)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="326.7256" stroke-dashoffset="0" transform="rotate(-90)"></circle>
+            </g>
+          </svg>
+          <div style="position:absolute;text-align:center;">
+            <div class="time" id="timeDisplay">25:00</div>
+            <div class="label" id="modeLabel">Enfoque</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn start" id="startBtn">Iniciar</button>
+          <button class="btn pause" id="pauseBtn" style="display:none">Pausar</button>
+          <button class="btn reset" id="resetBtn">Reiniciar</button>
+        </div>
+
+        <div class="small">Atajos: <strong>Space</strong> iniciar/pausar • <strong>R</strong> reiniciar</div>
+      </div>
+
+      <div class="right">
+        <div class="section">
+          <h3>Configuración</h3>
+          <div class="field">
+            <label for="pomodoroInput">Duración Pomodoro (min)</label>
+            <input id="pomodoroInput" type="number" min="1" max="180" value="25">
+          </div>
+          <div class="field">
+            <label for="shortInput">Descanso corto (min)</label>
+            <input id="shortInput" type="number" min="1" max="60" value="5">
+          </div>
+          <div class="field">
+            <label for="longInput">Descanso largo (min)</label>
+            <input id="longInput" type="number" min="1" max="120" value="15">
+          </div>
+          <div class="field">
+            <label for="cyclesInput">Ciclos hasta descanso largo</label>
+            <input id="cyclesInput" type="number" min="1" max="10" value="4">
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+            <label class="toggle"><input type="checkbox" id="autoNext"> <span class="small">Autoplay siguiente sesión</span></label>
+            <label class="toggle"><input type="checkbox" id="soundToggle" checked> <span class="small">Sonido al acabar</span></label>
+            <label class="toggle"><input type="checkbox" id="notifToggle"> <span class="small">Notificaciones del sistema</span></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button class="btn" id="saveSettings">Guardar</button>
+            <button class="btn" id="resetSettings">Restablecer</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Historial</h3>
+          <div class="history" id="history"></div>
+        </div>
+
+        <div class="section">
+          <h3>Consejos rápidos</h3>
+          <ul class="small">
+            <li>Trabaja en bloques y toma descansos breves para mantener la concentración.</li>
+            <li>Levántate y estira durante los descansos para mejorar la circulación.</li>
+            <li>Si necesitas más tiempo, ajusta la duración en configuración.</li>
+          </ul>
+        </div>
+
+        <footer>@Copyright Germán Narciso Córdoba</footer>
+      </div>
+    </div>
+  </div>
+
+  <audio id="beep" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=" preload="auto"></audio>
+
+  <script>
+    // Elementos
+    const timeDisplay = document.getElementById('timeDisplay');
+    const modeLabel = document.getElementById('modeLabel');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    const progressCircle = document.getElementById('progressCircle');
+    const beep = document.getElementById('beep');
+    const historyEl = document.getElementById('history');
+
+    // Config inputs
+    const pomodoroInput = document.getElementById('pomodoroInput');
+    const shortInput = document.getElementById('shortInput');
+    const longInput = document.getElementById('longInput');
+    const cyclesInput = document.getElementById('cyclesInput');
+    const autoNext = document.getElementById('autoNext');
+    const soundToggle = document.getElementById('soundToggle');
+    const notifToggle = document.getElementById('notifToggle');
+    const saveSettings = document.getElementById('saveSettings');
+    const resetSettings = document.getElementById('resetSettings');
+
+    // Estado
+    let mode = 'pomodoro'; // pomodoro, short, long
+    let running = false;
+    let timer = null;
+    let remaining = 25*60; // segundos
+    let total = remaining;
+    let completedCycles = 0;
+    const CIRCLE_CIRC = 2*Math.PI*52; // r=52 from svg
+
+    // Inicializar desde localStorage
+    function loadSettings(){
+      const s = JSON.parse(localStorage.getItem('pomodoro.settings') || '{}');
+      if(s.pomodoro) pomodoroInput.value = s.pomodoro;
+      if(s.short) shortInput.value = s.short;
+      if(s.long) longInput.value = s.long;
+      if(s.cycles) cyclesInput.value = s.cycles;
+      autoNext.checked = s.autoNext ?? true;
+      soundToggle.checked = s.sound ?? true;
+      notifToggle.checked = s.notif ?? false;
+      const hist = JSON.parse(localStorage.getItem('pomodoro.history') || '[]');
+      renderHistory(hist);
+    }
+
+    function saveSettingsToStorage(){
+      const s = {
+        pomodoro: Number(pomodoroInput.value),
+        short: Number(shortInput.value),
+        long: Number(longInput.value),
+        cycles: Number(cyclesInput.value),
+        autoNext: autoNext.checked,
+        sound: soundToggle.checked,
+        noti: notifToggle.checked
+      };
+      localStorage.setItem('pomodoro.settings', JSON.stringify(s));
+    }
+
+    function formatTime(sec){
+      const m = Math.floor(sec/60).toString().padStart(2,'0');
+      const s = (sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    function updateDisplay(){
+      timeDisplay.textContent = formatTime(remaining);
+      const percent = (total - remaining) / total;
+      const dash = CIRCLE_CIRC * (1 - percent);
+      progressCircle.style.strokeDasharray = `${CIRCLE_CIRC}`;
+      progressCircle.style.strokeDashoffset = dash;
+    }
+
+    function setMode(newMode, resetTimer=true){
+      mode = newMode;
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+      if(mode==='pomodoro'){
+        total = Number(pomodoroInput.value)*60;
+        modeLabel.textContent = 'Enfoque';
+      } else if(mode==='short'){
+        total = Number(shortInput.value)*60;
+        modeLabel.textContent = 'Descanso corto';
+      } else {
+        total = Number(longInput.value)*60;
+        modeLabel.textContent = 'Descanso largo';
+      }
+      if(resetTimer) remaining = total;
+      updateDisplay();
+    }
+
+    // Tick
+    function tick(){
+      if(remaining<=0){
+        clearInterval(timer); timer=null; running=false; onFinish(); return;
+      }
+      remaining--;
+      updateDisplay();
+    }
+
+    function onFinish(){
+      playSound();
+      addHistoryEntry(mode);
+      // Notifications
+      if(notifToggle.checked && "Notification" in window){
+        if(Notification.permission!=='granted') Notification.requestPermission().then(()=>{});
+        if(Notification.permission==='granted'){
+          const title = mode==='pomodoro' ? 'Pomodoro completado' : 'Descanso completado';
+          const msg = mode==='pomodoro' ? 'Hora de descansar' : 'Volver al trabajo?';
+          new Notification(title, {body: msg});
+        }
+      }
+
+      // Avanzar según configuración
+      if(mode==='pomodoro'){
+        completedCycles++;
+      }
+
+      const cyclesToLong = Number(cyclesInput.value);
+      if(autoNext.checked){
+        if(mode==='pomodoro'){
+          if(completedCycles % cyclesToLong === 0){
+            setMode('long');
+          } else {
+            setMode('short');
+          }
+          startTimer();
+        } else {
+          // finished break -> go to pomodoro
+          setMode('pomodoro');
+          startTimer();
+        }
+      } else {
+        // stop and show buttons
+        startBtn.style.display='inline-block';
+        pauseBtn.style.display='none';
+      }
+    }
+
+    function startTimer(){
+      if(running) return;
+      running = true;
+      if(!timer) timer = setInterval(tick,1000);
+      startBtn.style.display='none';
+      pauseBtn.style.display='inline-block';
+    }
+    function pauseTimer(){
+      running=false; clearInterval(timer); timer=null;
+      startBtn.style.display='inline-block';
+      pauseBtn.style.display='none';
+    }
+    function resetTimer(){
+      pauseTimer();
+      setMode(mode,true);
+    }
+
+    // Sound
+    function playSound(){
+      if(!soundToggle.checked) return;
+      try{ beep.currentTime=0; beep.play(); }catch(e){}
+    }
+
+    // History
+    function addHistoryEntry(mode){
+      const hist = JSON.parse(localStorage.getItem('pomodoro.history') || '[]');
+      hist.unshift({mode, time: new Date().toISOString()});
+      if(hist.length>20) hist.pop();
+      localStorage.setItem('pomodoro.history', JSON.stringify(hist));
+      renderHistory(hist);
+    }
+
+    function renderHistory(hist){
+      historyEl.innerHTML='';
+      hist.forEach(h=>{
+        const d = new Date(h.time);
+        const el = document.createElement('div');
+        el.className='hist-item';
+        el.innerHTML = `<div>${h.mode==='pomodoro'? 'Pomodoro':'Descanso'} </div><div class="small">${d.toLocaleString()}</div>`;
+        historyEl.appendChild(el);
+      });
+    }
+
+    // Eventos UI
+    modeBtns.forEach(b=>b.addEventListener('click', ()=>{ setMode(b.dataset.mode); }));
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+    saveSettings.addEventListener('click', ()=>{ saveSettingsToStorage(); alert('Configuración guardada'); });
+    resetSettings.addEventListener('click', ()=>{ localStorage.removeItem('pomodoro.settings'); location.reload(); });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e)=>{
+      if(e.code==='Space'){ e.preventDefault(); running? pauseTimer(): startTimer(); }
+      if(e.key.toLowerCase()==='r') resetTimer();
+    });
+
+    // Persist inputs live
+    [pomodoroInput, shortInput, longInput, cyclesInput, autoNext, soundToggle, notifToggle].forEach(inp=>{
+      inp.addEventListener('change', ()=>{ saveSettingsToStorage(); setMode(mode,false); });
+    });
+
+    // Init
+    loadSettings();
+    setMode('pomodoro');
+
+    // Request notification permission if user enables notifications
+    notifToggle.addEventListener('change', ()=>{
+      if(notifToggle.checked && Notification && Notification.permission!=='granted'){
+        Notification.requestPermission();
+      }
+    });
+
+    // Accessibility: focus first control
+    startBtn.focus();
+
+  </script>
+</body>
+</html>

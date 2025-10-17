@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pomodoro — App de Bienestar y Productividad</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#ff6b6b; --accent-2:#7c5cff;
+      --muted:#9aa4b2; --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#071223 0%, var(--bg) 100%); color:#e6eef6}
+    .app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .card{
+      width:980px; max-width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px; padding:24px; display:grid; grid-template-columns:360px 1fr;
+      gap:20px; box-shadow:0 8px 30px rgba(2,6,23,0.7); position: relative;
+    }
+
+    /* --- Panel Izquierdo (Timer y Bienestar) --- */
+    .left{display:flex;flex-direction:column;align-items:center;gap:18px;padding:20px;border-radius:12px;background:var(--glass)}
+    .mode-controls{display:flex;gap:10px}
+    .mode-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .mode-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:0}
+    
+    .timer-container{ text-align: center; } /* Contenedor del reloj */
+    .ring{width:260px;height:260px;display:grid;place-items:center; position:relative;}
+    .time{font-size:48px;font-weight:700;letter-spacing:1px}
+    .label{color:var(--muted);font-size:13px;margin-top:6px}
+
+    .controls{display:flex;gap:10px}
+    .btn{padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+    .btn.start{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white}
+    .btn.pause{background:#263042;color:white}
+    .btn.reset{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    
+    /* --- Módulo de Bienestar (AÑADIDO) --- */
+    .wellness-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 260px; }
+    .breathing-guide { position: relative; width: 150px; height: 150px; display: grid; place-items: center; }
+    .breathing-circle {
+      width: 100%; height: 100%; background: linear-gradient(45deg, var(--accent-2), var(--accent));
+      border-radius: 50%; animation: breathe 8s ease-in-out infinite;
+    }
+    .breathing-text {
+      position: absolute; color: white; font-weight: 600; font-size: 18px;
+      animation: breathe-text 8s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scale(0.6); opacity: 0.7; }
+      50% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes breathe-text {
+      0%, 100% { content: 'Inhala'; opacity: 0.7; }
+      45% { opacity: 1; }
+      50% { content: 'Exhala'; opacity: 1; }
+      95% { opacity: 0.7; }
+    }
+    .wellness-tip { margin-top: 20px; font-style: italic; max-width: 280px; }
+
+    /* --- Panel Derecho --- */
+    .right{display:flex;flex-direction:column;gap:16px;padding:18px}
+    .section{background:rgba(255,255,255,0.02);padding:14px;border-radius:10px}
+    /* (Resto de estilos del panel derecho sin cambios)... */
+    .section h3{margin:0 0 8px 0;font-size:15px}
+    .field{display:flex;gap:8px;align-items:center}
+    .field label{min-width:160px;color:var(--muted);font-size:13px}
+    .field input[type=number]{width:100px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .toggle{display:inline-flex;align-items:center;gap:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .history{display:flex;flex-direction:column;gap:8px}
+    .hist-item{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);font-size:13px}
+    footer{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+    /* --- Estilos responsive y de menú móvil --- */
+    .hamburger-btn, .close-btn { display: none; }
+    @media (max-width: 880px){
+      .app { padding: 0; }
+      .card{grid-template-columns:1fr; height: 100vh; border-radius: 0; padding: 16px; gap: 0;}
+      .left{justify-content: center; background: transparent;}
+      .hamburger-btn {display: flex; flex-direction: column; justify-content: space-around; width: 30px; height: 30px; background: transparent; border: none; cursor: pointer; padding: 0; position: absolute; top: 24px; left: 24px; z-index: 1001;}
+      .hamburger-btn span {width: 30px; height: 3px; background: var(--muted); border-radius: 5px;}
+      .card.menu-active .hamburger-btn {display: none;}
+      .right{position: fixed; top: 0; left: 0; height: 100%; width: 300px; max-width: 80%; background: var(--card); z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease-in-out; box-shadow: 5px 0px 20px rgba(0,0,0,0.3); overflow-y: auto; padding-top: 60px;}
+      .right.menu-open {transform: translateX(0);}
+      .close-btn {display: block; position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: white; font-size: 32px; cursor: pointer;}
+    }
+
+    /* --- Estilos del Ayudante de Enfoque --- */
+    .motivator { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+    .character {width: 60px; height: 60px; background: linear-gradient(45deg, var(--accent-2), #a18aff); border-radius: 50%; position: relative; cursor: pointer; flex-shrink: 0; transition: transform 0.2s ease; animation: float 3s ease-in-out infinite;}
+    .character:hover { transform: scale(1.1) translateY(-5px); }
+    .eye { width: 6px; height: 8px; background: white; border-radius: 50%; position: absolute; top: 22px; animation: blink 4s ease-in-out infinite;}
+    .left-eye { left: 18px; } .right-eye { right: 18px; }
+    .mouth { width: 15px; height: 7px; border: 2px solid white; border-top: none; border-radius: 0 0 10px 10px; position: absolute; bottom: 15px; left: calc(50% - 7.5px); }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+    .quote-bubble {flex: 1; background: rgba(255, 255, 255, 0.04); padding: 12px; border-radius: 10px; position: relative;}
+    .quote-bubble p { margin: 0; font-size: 13px; font-style: italic; color: var(--muted); }
+    .quote-bubble::before {content: ''; position: absolute; top: 50%; left: -10px; margin-top: -5px; border-width: 5px; border-style: solid; border-color: transparent rgba(255, 255, 255, 0.04) transparent transparent;}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card" role="application" aria-label="Timer Pomodoro">
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú"><span></span><span></span><span></span></button>
+
+      <div class="left">
+        <div class="mode-controls" role="tablist">
+          <button class="mode-btn active" data-mode="pomodoro" role="tab">Pomodoro</button>
+          <button class="mode-btn" data-mode="short" role="tab">Descanso corto</button>
+          <button class="mode-btn" data-mode="long" role="tab">Descanso largo</button>
+        </div>
+
+        <div id="timerContainer" class="timer-container">
+            <div class="ring" aria-hidden="false">
+              <svg id="progressSvg" viewBox="0 0 120 120" width="260" height="260">
+                <defs><linearGradient id="g1" x1="0%" x2="100%"><stop offset="0%" stop-color="var(--accent)" /><stop offset="100%" stop-color="var(--accent-2)" /></linearGradient></defs>
+                <g transform="translate(60,60)">
+                  <circle r="52" stroke="rgba(255,255,255,0.06)" stroke-width="12" fill="none"></circle>
+                  <circle id="progressCircle" r="52" stroke="url(#g1)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="326.7256" stroke-dashoffset="0" transform="rotate(-90)"></circle>
+                </g>
+              </svg>
+              <div style="position:absolute;text-align:center;">
+                <div class="time" id="timeDisplay">25:00</div>
+                <div class="label" id="modeLabel">Enfoque</div>
+              </div>
+            </div>
+        </div>
+        
+        <div id="wellnessContainer" class="wellness-container" style="display: none;">
+            <div class="breathing-guide">
+              <div class="breathing-circle"></div>
+              <p class="breathing-text">Inhala</p>
+            </div>
+            <div id="wellnessTip" class="small wellness-tip"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn start" id="startBtn">Iniciar</button>
+          <button class="btn pause" id="pauseBtn" style="display:none">Pausar</button>
+          <button class="btn reset" id="resetBtn">Reiniciar</button>
+        </div>
+        <div class="small">Atajos: <strong>Space</strong> iniciar/pausar • <strong>R</strong> reiniciar</div>
+      </div>
+
+      <div class="right" id="rightPanel">
+        <button class="close-btn" id="closeMenuBtn" aria-label="Cerrar menú">&times;</button>
+        <div class="section">
+          <h3>Configuración</h3>
+          <div class="field"><label for="pomodoroInput">Duración Pomodoro (min)</label><input id="pomodoroInput" type="number" min="1" max="180" value="25"></div>
+          <div class="field"><label for="shortInput">Descanso corto (min)</label><input id="shortInput" type="number" min="1" max="60" value="5"></div>
+          <div class="field"><label for="longInput">Descanso largo (min)</label><input id="longInput" type="number" min="1" max="120" value="15"></div>
+          <div class="field"><label for="cyclesInput">Ciclos hasta descanso largo</label><input id="cyclesInput" type="number" min="1" max="10" value="4"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap: wrap;">
+            <label class="toggle"><input type="checkbox" id="autoNext"> <span class="small">Autoplay siguiente</span></label>
+            <label class="toggle"><input type="checkbox" id="soundToggle" checked> <span class="small">Sonido al acabar</span></label>
+            <label class="toggle"><input type="checkbox" id="notifToggle"> <span class="small">Notificaciones</span></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;"><button class="btn" id="saveSettings">Guardar</button><button class="btn" id="resetSettings">Restablecer</button></div>
+        </div>
+        <div class="section">
+          <h3>Tu Ayudante de Enfoque</h3>
+          <div class="motivator">
+            <div class="character" id="motivatorCharacter" title="¡Haz clic para otra frase!"><div class="eye left-eye"></div><div class="eye right-eye"></div><div class="mouth"></div></div>
+            <div class="quote-bubble"><p id="motivatorQuote">¡Hagamos que cada segundo cuente!</p></div>
+          </div>
+        </div>
+        <div class="section">
+          <h3>Historial</h3>
+          <div class="history" id="history"></div>
+        </div>
+        <div class="section">
+          <h3>Consejos rápidos</h3>
+          <ul class="small">
+            <li>Trabaja en bloques y toma descansos breves para mantener la concentración.</li>
+            <li>Levántate y estira durante los descansos para mejorar la circulación.</li>
+            <li>Si necesitas más tiempo, ajusta la duración en configuración.</li>
+          </ul>
+        </div>
+        <footer>@Copyright Germán Narciso Córdoba</footer>
+      </div>
+    </div>
+  </div>
+  
+  <audio id="beep" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=" preload="auto"></audio>
+
+ <script>
+    // --- Elementos ---
+    const card = document.querySelector('.card');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const modeLabel = document.getElementById('modeLabel');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    const progressCircle = document.getElementById('progressCircle');
+    const beep = document.getElementById('beep');
+    const historyEl = document.getElementById('history');
+    
+    // Elementos de Bienestar
+    const timerContainer = document.getElementById('timerContainer');
+    const wellnessContainer = document.getElementById('wellnessContainer');
+    const wellnessTip = document.getElementById('wellnessTip');
+    const breathingText = document.querySelector('.breathing-text');
+
+    // --- Config inputs ---
+    const pomodoroInput = document.getElementById('pomodoroInput');
+    const shortInput = document.getElementById('shortInput');
+    const longInput = document.getElementById('longInput');
+    const cyclesInput = document.getElementById('cyclesInput');
+    const autoNext = document.getElementById('autoNext');
+    const soundToggle = document.getElementById('soundToggle');
+    const notifToggle = document.getElementById('notifToggle');
+    const saveSettings = document.getElementById('saveSettings');
+    const resetSettings = document.getElementById('resetSettings');
+
+    // --- Ayudante Motivacional ---
+    const motivatorCharacter = document.getElementById('motivatorCharacter');
+    const motivatorQuote = document.getElementById('motivatorQuote');
+    
+    // --- Lógica para Menú Móvil ---
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
+    const rightPanel = document.getElementById('rightPanel');
+    hamburgerBtn.addEventListener('click', () => { rightPanel.classList.add('menu-open'); card.classList.add('menu-active'); });
+    closeMenuBtn.addEventListener('click', () => { rightPanel.classList.remove('menu-open'); card.classList.remove('menu-active'); });
+
+    // --- Estado ---
+    let mode = 'pomodoro';
+    let running = false;
+    let timer = null;
+    let remaining = 25*60;
+    let total = remaining;
+    let completedCycles = 0;
+    const CIRCLE_CIRC = 2*Math.PI*52;
+
+    const motivationalPhrases = [ "¡Un pequeño paso hoy es un gran salto mañana!", "La concentración es la clave. ¡Tú puedes!", "Cada pomodoro te acerca a tu meta.", "El descanso es parte del trabajo. ¡Recarga energías!", "¡Sigue adelante! El esfuerzo vale la pena.", "Hecho es mejor que perfecto. ¡No te detengas!", "Cree en ti mismo y en todo lo que eres." ];
+    
+    const wellnessTips = [ "🧘‍♂️ Mueve el cuello suavemente de lado a lado para liberar tensión.", "💧 ¡Es hora de beber agua! Mantenerse hidratado es clave. 🍶", "👀 Mira a un objeto lejano durante 20 segundos para descansar tu vista.", "🤸‍♀️ Levántate y estira la espalda. ¡Tu cuerpo te lo agradecerá!", "🙌 Estira tus muñecas, rotándolas en círculos en ambas direcciones." ];
+
+    function showNewQuote() { motivatorQuote.textContent = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)]; }
+    function showWellnessTip() { wellnessTip.textContent = wellnessTips[Math.floor(Math.random() * wellnessTips.length)]; }
+
+    function loadSettings(){
+      const s = JSON.parse(localStorage.getItem('pomodoro.settings') || '{}');
+      if(s.pomodoro) pomodoroInput.value = s.pomodoro;
+      if(s.short) shortInput.value = s.short;
+      if(s.long) longInput.value = s.long;
+      if(s.cycles) cyclesInput.value = s.cycles;
+      autoNext.checked = s.autoNext ?? true;
+      soundToggle.checked = s.sound ?? true;
+      notifToggle.checked = s.notif ?? false;
+      const hist = JSON.parse(localStorage.getItem('pomodoro.history') || '[]');
+      renderHistory(hist);
+    }
+
+    function saveSettingsToStorage(){
+      const s = {
+        pomodoro: Number(pomodoroInput.value), short: Number(shortInput.value), long: Number(longInput.value),
+        cycles: Number(cyclesInput.value), autoNext: autoNext.checked, sound: soundToggle.checked, noti: notifToggle.checked
+      };
+      localStorage.setItem('pomodoro.settings', JSON.stringify(s));
+    }
+
+    function formatTime(sec){
+      const m = Math.floor(sec/60).toString().padStart(2,'0');
+      const s = (sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    function updateDisplay(){
+      timeDisplay.textContent = formatTime(remaining);
+      const percent = (total - remaining) / total;
+      const dash = CIRCLE_CIRC * (1 - percent);
+      progressCircle.style.strokeDasharray = `${CIRCLE_CIRC}`;
+      progressCircle.style.strokeDashoffset = dash;
+    }
+
+    function setMode(newMode, resetTimer=true){
+      mode = newMode;
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+      
+      if(mode==='pomodoro'){
+        total = Number(pomodoroInput.value)*60;
+        modeLabel.textContent = 'Enfoque';
+        timerContainer.style.display = 'block';
+        wellnessContainer.style.display = 'none';
+        controls.style.visibility = 'visible';
+      } else {
+        timerContainer.style.display = 'block'; // Mostramos el timer también en descansos
+        wellnessContainer.style.display = 'flex'; // Mostramos el bienestar
+        // Ocultamos el anillo y la etiqueta de tiempo para dar espacio a la animación
+        timerContainer.querySelector('.ring').style.display = 'none'; 
+        wellnessContainer.style.display = 'flex';
+
+        showWellnessTip();
+        if(mode==='short'){ total = Number(shortInput.value)*60; modeLabel.textContent = 'Descanso corto'; }
+        else { total = Number(longInput.value)*60; modeLabel.textContent = 'Descanso largo'; }
+      }
+      
+      if(resetTimer) remaining = total;
+      updateDisplay();
+    }
+
+    // ===== FUNCIÓN CORREGIDA =====
+    function tick(){
+      // Actualiza el texto de respiración solo durante los descansos
+      if (mode !== 'pomodoro') {
+        const halfway = total / 2;
+        breathingText.textContent = remaining > halfway ? 'Inhala' : 'Exhala';
+      }
+      
+      if(remaining<=0){ clearInterval(timer); timer=null; running=false; onFinish(); return; }
+      
+      remaining--;
+      updateDisplay(); // AÑADIDO: Esta es la línea que faltaba para actualizar el reloj
+    }
+    // =============================
+
+    function onFinish(){
+      playSound();
+      addHistoryEntry(mode, 'completado');
+
+      if (notifToggle.checked && "Notification" in window && Notification.permission === 'granted') {
+        let title = mode === 'pomodoro' ? '¡Tiempo de descansar! 🧘' : '¡A trabajar! 💪';
+        let msg = mode === 'pomodoro' ? 'Has completado un Pomodoro. ¡Buen trabajo!' : 'El descanso ha terminado. ¡A concentrarse!';
+        new Notification(title, { body: msg, icon: 'https://img.icons8.com/plasticine/100/tomato.png' });
+      }
+
+      if(mode==='pomodoro'){ completedCycles++; }
+      const cyclesToLong = Number(cyclesInput.value);
+      if(autoNext.checked){
+        if(mode==='pomodoro'){
+          (completedCycles % cyclesToLong === 0) ? setMode('long') : setMode('short');
+          startTimer();
+        } else {
+          setMode('pomodoro');
+          startTimer();
+        }
+      } else {
+        startBtn.style.display='inline-block';
+        pauseBtn.style.display='none';
+        controls.style.visibility = 'visible';
+        // Hacemos visible el anillo de nuevo por si se ocultó
+        timerContainer.querySelector('.ring').style.display = 'grid'; 
+        wellnessContainer.style.display = 'none';
+      }
+    }
+
+    function startTimer(){
+      if(running) return;
+      running = true;
+      addHistoryEntry(mode, 'iniciado');
+      if (mode === 'pomodoro') {
+          showNewQuote();
+          timerContainer.querySelector('.ring').style.display = 'grid';
+          wellnessContainer.style.display = 'none';
+      } else {
+          timerContainer.querySelector('.ring').style.display = 'none';
+          wellnessContainer.style.display = 'flex';
+      }
+      if(!timer) timer = setInterval(tick,1000);
+      startBtn.style.display='none';
+      pauseBtn.style.display='inline-block';
+    }
+
+    function pauseTimer(){
+      running=false; clearInterval(timer); timer=null;
+      addHistoryEntry(mode, 'pausado');
+      startBtn.style.display='inline-block';
+      pauseBtn.style.display='none';
+    }
+
+    function resetTimer(){
+      running = false; clearInterval(timer); timer = null;
+      setMode(mode, true);
+      addHistoryEntry(mode, 'reiniciado');
+      startBtn.style.display = 'inline-block';
+      pauseBtn.style.display = 'none';
+      // Aseguramos la visibilidad correcta al reiniciar
+      timerContainer.querySelector('.ring').style.display = 'grid'; 
+      wellnessContainer.style.display = 'none';
+    }
+
+    function playSound(){ if(!soundToggle.checked) return; try{ beep.currentTime=0; beep.play(); }catch(e){} }
+
+    function addHistoryEntry(mode, action){
+      const hist = JSON.parse(localStorage.getItem('pomodoro.history') || '[]');
+      hist.unshift({mode, action, time: new Date().toISOString()});
+      if(hist.length>20) hist.pop();
+      localStorage.setItem('pomodoro.history', JSON.stringify(hist));
+      renderHistory(hist);
+    }
+
+    function renderHistory(hist){
+      historyEl.innerHTML='';
+      hist.forEach(h=>{
+        const d = new Date(h.time);
+        const el = document.createElement('div');
+        el.className='hist-item';
+        let modeText;
+        switch(h.mode){
+            case 'pomodoro': modeText = 'Pomodoro'; break;
+            case 'short': modeText = 'Descanso Corto'; break;
+            case 'long': modeText = 'Descanso Largo'; break;
+            default: modeText = h.mode;
+        }
+        const actionText = h.action ? h.action.charAt(0).toUpperCase() + h.action.slice(1) : '';
+        el.innerHTML = `<div>${modeText} - <strong>${actionText}</strong></div><div class="small">${d.toLocaleString()}</div>`;
+        historyEl.appendChild(el);
+      });
+    }
+
+    // --- Eventos UI ---
+    modeBtns.forEach(b=>b.addEventListener('click', ()=>{ setMode(b.dataset.mode); }));
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+    saveSettings.addEventListener('click', ()=>{ saveSettingsToStorage(); alert('Configuración guardada'); });
+    resetSettings.addEventListener('click', ()=>{ localStorage.removeItem('pomodoro.settings'); localStorage.removeItem('pomodoro.history'); location.reload(); });
+    motivatorCharacter.addEventListener('click', showNewQuote);
+
+    // --- Keyboard shortcuts & Persist inputs live ---
+    document.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); running? pauseTimer(): startTimer(); } if(e.key.toLowerCase()==='r') resetTimer(); });
+    [pomodoroInput, shortInput, longInput, cyclesInput, autoNext, soundToggle, notifToggle].forEach(inp=>{ inp.addEventListener('change', ()=>{ saveSettingsToStorage(); setMode(mode,false); }); });
+
+    // --- Init ---
+    loadSettings();
+    setMode('pomodoro');
+    showNewQuote();
+    notifToggle.addEventListener('change', ()=>{ if(notifToggle.checked && "Notification" in window && Notification.permission !== 'granted'){ Notification.requestPermission(); } });
+    startBtn.focus();
+  </script>
+</body>
+</html>
